@@ -58,38 +58,29 @@ def helix2dol(R, L_dim, T_dim, N_p, h, filename='what', dR=1, R_phase=0, savefil
                 createDOL(filename, DOL)
         return DOL
 
-def ring2dol(radius, pitch, unitsPerPitch, unitsInPitch, startAt, discreteHeight, numHelixStarts, filename='ringtest', savefile=True):
-        longitudinalSpacing = (pitch * 2.0 / numHelixStarts)
-        angle = 2 * np.pi / unitsPerPitch
-        
-        DOL = []
-        
-        for heightInd in range(int(discreteHeight)):
-                hUnitsPerPitch = 2.0 * np.pi / angle
-                initialZShift = heightInd * longitudinalSpacing
-        
-                for inPitchInd in range(startAt, int(unitsInPitch)):
-                        theta = inPitchInd * angle
-                        x = radius * np.sin(theta)
-                        y = radius * np.cos(theta)
-                        z = initialZShift + (inPitchInd / unitsPerPitch) * pitch
-                        alpha = 0
-                        beta = 0
-                        gamma = 90. - 180. * theta / np.pi
-                        DOL.append([x, y, z, alpha, beta, gamma])
-        
-        xMean = sum([coord[0] for coord in DOL]) / len(DOL)
-        yMean = sum([coord[1] for coord in DOL]) / len(DOL)
-        zMean = sum([coord[2] for coord in DOL]) / len(DOL)
-    
-        for coord in DOL:
-                coord[0] -= xMean
-                coord[1] -= yMean
-                coord[2] -= zMean
+def ring2dol(R, T_dim, L_dim, h, startAt=0, numHelixStarts=3, filename='ringtest', savefile=True):
+        p = T_dim  
+        L_turn = np.sqrt((2*np.pi * R)**2 + p**2) # Length of one complete turn
+        N_turn = int(L_turn/L_dim) # Number of dimers for one turn
+        rings = int(h/p) # Number of complete rings
+        angle = 2 * np.pi / N_turn
+        DOL = np.zeros([rings*N_turn, 6])
+        c = 0
+        for k in range(rings):
+                z_start = startAt + k*p   
+                for j in range(N_turn):
+                        theta = j * angle
+                        x = R * np.sin(theta)
+                        y = R * np.cos(theta)
+                        z = z_start + (j * p/ N_turn)
+                        alpha, beta = 0, 0
+                        gamma = 90 - (180 * theta / np.pi)
+                        DOL[c] = [x, y, z, alpha, beta, gamma]
+                        c += 1
+        print(rings)
         if savefile:
                 createDOL(filename, DOL)
         return DOL
-        #return res
 
 def MT2dol(radius=27, pitch=5.1, unitsPerPitch=20, unitsInPitch=20, startAt=0, discreteHeight=10, numHelixStarts=1, superHelicalPitch=0, RingTwistAlpha=0, RingTwistBeta=0, filename='test', savefile=True):
         longitudinalSpacing = (pitch * 2.0 / numHelixStarts)
