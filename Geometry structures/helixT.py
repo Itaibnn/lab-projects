@@ -58,7 +58,7 @@ def helix2dol(R, L_dim, T_dim, N_p, h, filename='what', dR=1, R_phase=0, savefil
                 createDOL(filename, DOL)
         return DOL
 
-def ring2dol(R, T_dim, L_dim, h, startAt=0, numHelixStarts=3, filename='ringtest', savefile=True):
+def ring2dol(R, T_dim, L_dim, h, startAt=0, numHelixStarts=3, alpha=0, beta=0,filename='ringtest', savefile=True):
         p = T_dim  
         L_turn = np.sqrt((2*np.pi * R)**2 + p**2) # Length of one complete turn
         N_turn = int(L_turn/L_dim) # Number of dimers for one turn
@@ -73,7 +73,6 @@ def ring2dol(R, T_dim, L_dim, h, startAt=0, numHelixStarts=3, filename='ringtest
                         x = R * np.sin(theta)
                         y = R * np.cos(theta)
                         z = z_start + (j * p/ N_turn)
-                        alpha, beta = 0, 0
                         gamma = 90 - (180 * theta / np.pi)
                         DOL[c] = [x, y, z, alpha, beta, gamma]
                         c += 1
