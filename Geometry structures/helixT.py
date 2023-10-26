@@ -34,12 +34,12 @@ def MoveToGC(Array):
 # =================
 # Structures
 # =================
-def helix2dol(R, L_dim, T_dim, N_p, h, filename='what', dR=1, R_phase=0, savefile=True):
-        p = N_p * T_dim
+def helix2dol(R, L_dim, T_dim, N_p, h, pitchPerUnit=0, pitchPerSlab=0,filename='what', dR=0, R_phase=0, savefile=True):
+        p = N_p * T_dim + pitchPerUnit * N_p 
         L_turn = np.sqrt((2 * np.pi * R)**2 + p**2)
         N_turn = L_turn/L_dim
         i_max = int(h/p*N_turn)
-        k_max = N_p - 1
+        k_max = N_p #- 1
         DOL = np.zeros([i_max* k_max, 6])
         c = 0
         for k in range(k_max):
@@ -58,13 +58,13 @@ def helix2dol(R, L_dim, T_dim, N_p, h, filename='what', dR=1, R_phase=0, savefil
                 createDOL(filename, DOL)
         return DOL
 
-def ring2dol(R, T_dim, L_dim, h, startAt=0, alpha=0, beta=0, pitch=0, filename='ringtest', savefile=True):
-        p = T_dim + pitch
+def ring2dol(R, L_dim, T_dim, h, pitch=0,startAt=0, alpha_shift=0, beta_shift=0, stand=False,filename='ringtest', savefile=True):
+        p = L_dim + pitch if stand else T_dim + pitch
         L_turn = np.sqrt((2*np.pi * R)**2 + p**2) # Length of one complete turn
         N_turn = int(L_turn/L_dim) # Number of dimers for one turn
         rings = int(h/p) # Number of complete rings
         angle = 2 * np.pi / N_turn
- 
+        alpha = alpha_shift if stand else 90 - np.arcsin(p/L_turn) * 180/ np.pi + alpha_shift
         c = 0
         N_remain = int((h - p*rings)/(p/N_turn))
         DOL = np.zeros([rings*N_turn + N_remain, 6])
@@ -73,34 +73,40 @@ def ring2dol(R, T_dim, L_dim, h, startAt=0, alpha=0, beta=0, pitch=0, filename='
                 j_max = N_turn if k < rings else N_remain
                 for j in range(j_max):
                         theta = j * angle
-                        x = R * np.sin(theta)
-                        y = R * np.cos(theta)
+                        x = R * np.cos(theta)
+                        y = R * np.sin(theta)
                         z = z_start + (j * p/ N_turn)
-                        gamma = 90 - (180 * theta / np.pi)
+                        gamma = - (180 * theta / np.pi)
+                        beta = beta_shift if stand else (180 * theta / np.pi) + beta_shift
                         DOL[c] = [x, y, z, alpha, beta, gamma]
                         c += 1
         if savefile:
                 createDOL(filename, DOL)
         return DOL
 
-def CS2dol(R, T_dim, L_dim, h, startAt=0, alpha=0, beta=0,filename='ringtest', savefile=True):
-        p = T_dim  
-        L_turn = np.sqrt((2*np.pi * R)**2 + p**2) # Length of one complete turn
-        N_turn = int(L_turn/L_dim) # Number of dimers for one turn
-        rings = int(h/p) # Number of complete rings
+def CS2dol(R1, R2, R3, L_dim, T_dim, pitchPerRing=0, pitchPerRep=0, repetitions=1, startAt=0, alpha_shift=0, beta_shift=0, stand=False, filename='ringtest', savefile=True):
+        p = L_dim + pitchPerRing if stand else T_dim + pitchPerRing
+        R = np.array([R1,R2,R3])
+        L_turn = np.sqrt((2*np.pi * R)**2)
+        N_turn = np.int64(L_turn/L_dim) 
         angle = 2 * np.pi / N_turn
-        DOL = np.zeros([rings*N_turn, 6])
         c = 0
-        for k in range(rings):
-                z_start = startAt + k*p   
-                for j in range(N_turn):
-                        theta = j * angle
-                        x = R * np.sin(theta)
-                        y = R * np.cos(theta)
-                        z = z_start + (j * p/ N_turn)
-                        gamma = 90 - (180 * theta / np.pi)
-                        DOL[c] = [x, y, z, alpha, beta, gamma]
-                        c += 1
+        DOL = np.zeros([repetitions*np.sum(N_turn), 6])
+        z_start = startAt
+        repHeight = p * 3
+        for i in range(repetitions):
+                z_start = i*(pitchPerRep + repHeight) + startAt
+                for ring in range(3):
+                        for j in range(N_turn[ring]):
+                                theta = j * angle[ring]
+                                x = R[ring] * np.cos(theta)
+                                y = R[ring] * np.sin(theta)
+                                z = z_start + p * ring
+                                gamma = - (180 * theta / np.pi)
+                                alpha = alpha_shift if stand else 90 + alpha_shift
+                                beta = beta_shift if stand else (180 * theta / np.pi) + beta_shift
+                                DOL[c] = [x, y, z, alpha, beta, gamma]
+                                c += 1
         if savefile:
                 createDOL(filename, DOL)
         return DOL
