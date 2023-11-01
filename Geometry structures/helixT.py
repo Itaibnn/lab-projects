@@ -34,31 +34,39 @@ def MoveToGC(Array):
 # =================
 # Structures
 # =================
-def helix2dol(R, L_dim, T_dim, N_p, h, pitchPerUnit=0, pitchPerSlab=0,filename='what', dR=0, R_phase=0, savefile=True):
-        p = N_p * T_dim + pitchPerUnit * N_p 
-        L_turn = np.sqrt((2 * np.pi * R)**2 + p**2)
-        N_turn = L_turn/L_dim
-        i_max = int(h/p*N_turn)
-        k_max = N_p #- 1
-        DOL = np.zeros([i_max* k_max, 6])
+def helix2dol(R, L_dim, T_dim, N_p, h, pitchPerUnit=0, pitchPerSlab=0, startAt=0, filename='what', dR=0, R_phase=0, savefile=True):
+        unitPitch = pitchPerUnit + T_dim
+        p = N_p * unitPitch + pitchPerSlab
+        L_turn = np.sqrt((2*np.pi * R)**2 + p**2)
+        N_turn = int(L_turn/L_dim)
+        N_ring = int((h-unitPitch*N_p)/(p)) # Number of slabs
+        angle = 2 * np.pi / N_turn
+        
         c = 0
-        for k in range(k_max):
-                z_start = k*p/N_p
-                for j in range(i_max):
-                        alpha = np.arctan(p/(2*np.pi*R)) * 180 / np.pi
-                        beta = 0
-                        gamma = j * 2 * np.pi / N_turn
-                        z = z_start + (j * p / N_turn)
-                        r = R - dR * np.abs(np.sin((np.pi*z)/p + R_phase* np.pi/180))
-                        x = r * np.cos(gamma)
-                        y = r * np.sin(gamma)
-                        DOL[c] = [x, y, z, alpha, beta, gamma]
-                        c += 1
+        N_remain = int((h - p*N_ring - unitPitch*N_p)/(p/N_turn))
+        DOL = np.zeros([N_turn*N_ring*N_p + N_remain*N_p, 6])
+        for helix in range(N_p):
+                for k in range(N_ring + 1):
+                        z_start = startAt + unitPitch * helix + p * k
+                        #print('z_start: ', z_start)
+                        j_max = N_turn if k < N_ring else N_remain
+                        for j in range(j_max):
+                                theta = j * angle
+                                alpha = np.arctan(p/(2*np.pi*R)) * 180 / np.pi
+                                beta = 0
+                                gamma = theta * 180 / np.pi
+                                z = z_start + j*p/N_turn
+                                r = R - dR * np.abs(np.sin((np.pi*z)/p + R_phase* np.pi/180))
+                                x = r * np.cos(theta)
+                                y = r * np.sin(theta)
+                                
+                                DOL[c] = [x, y, z, alpha, beta, gamma]
+                                c += 1
         if savefile:
                 createDOL(filename, DOL)
         return DOL
 
-def ring2dol(R, L_dim, T_dim, h, pitch=0,startAt=0, alpha_shift=0, beta_shift=0, stand=False,filename='ringtest', savefile=True):
+def ring2dol(R, L_dim, T_dim, h, pitch=0,startAt=0, alpha_shift=0, beta_shift=0, stand=False, filename='ringtest', savefile=True):
         p = L_dim + pitch if stand else T_dim + pitch
         L_turn = np.sqrt((2*np.pi * R)**2 + p**2) # Length of one complete turn
         N_turn = int(L_turn/L_dim) # Number of dimers for one turn
@@ -110,6 +118,54 @@ def CS2dol(R1, R2, R3, L_dim, T_dim, pitchPerRing=0, pitchPerRep=0, repetitions=
         if savefile:
                 createDOL(filename, DOL)
         return DOL
+
+def singleRing2dol(R, L_dim, T_dim, pitchPerUnit=0, startAt=0, alpha_shift=0, beta_shift=0, stand=False, filename='ringtest', savefile=True):
+        p = L_dim + pitchPerUnit if stand else T_dim + pitchPerUnit
+        L_turn = np.sqrt((2*np.pi * R)**2 + p**2) # Length of one complete turn
+        N_turn = int(L_turn/L_dim) # Number of dimers for one turn
+        angle = 2 * np.pi / N_turn
+        alpha = alpha_shift if stand else 90
+        c = 0
+        DOL = np.zeros([N_turn, 6])
+        for j in range(N_turn):
+                theta = j * angle
+                x = R * np.cos(theta)
+                y = R * np.sin(theta)
+                z = startAt
+                gamma = - 180 * theta / np.pi
+                beta = beta_shift if stand else (180 * theta / np.pi) + beta_shift
+                DOL[c] = [x, y, z, alpha, beta, gamma]
+                c += 1
+        if savefile:
+                createDOL(filename, DOL)
+        return DOL
+
+def flower2dol(R, L_dim, T_dim, pitchPerUnit=0, pitchPerRing=0, startAt=0, alpha_shift=0, beta_shift=0, stand=False, filename='ringtest', savefile=True):
+        p = L_dim + pitchPerUnit if stand else T_dim + pitchPerUnit
+        L_turn = np.sqrt((2*np.pi * R)**2 + p**2) # Length of one complete turn
+        N_turn = int(L_turn/L_dim) # Number of dimers for one turn
+        angle = 2 * np.pi / N_turn
+        alpha = alpha_shift if stand else 90
+        c = 0
+        DOL = np.zeros([N_turn*7, 6])
+        ringAngles = np.linspace(0, np.pi*2, 6, endpoint=False)
+        cx = (2*R + p + pitchPerRing) * np.cos(ringAngles)
+        cy = (2*R + p + pitchPerRing) * np.sin(ringAngles)
+        cx, cy = np.insert(cx, 0, 0), np.insert(cy, 0, 0)
+        for i in range(7):
+                for j in range(N_turn):
+                        theta = j * angle
+                        x = R * np.cos(theta) + cx[i]
+                        y = R * np.sin(theta) + cy[i]
+                        z = startAt
+                        gamma = - 180 * theta / np.pi + (i * 180 / (6*np.pi))
+                        beta = beta_shift if stand else (180 * theta / np.pi) + beta_shift
+                        DOL[c] = [x, y, z, alpha, beta, gamma]
+                        c += 1
+        if savefile:
+                createDOL(filename, DOL)
+        return DOL
+
 
 def MT2dol(radius=27, pitch=5.1, unitsPerPitch=20, unitsInPitch=20, startAt=0, discreteHeight=10, numHelixStarts=1, superHelicalPitch=0, RingTwistAlpha=0, RingTwistBeta=0, filename='test', savefile=True):
         longitudinalSpacing = (pitch * 2.0 / numHelixStarts)
